@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { PhotoView, PhotoProvider } from "react-photo-view";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { User } from "firebase/auth";
 // import { v4 as uuidv4 } from "uuid";
 import GalleryHeader from "@/components/gallery-header";

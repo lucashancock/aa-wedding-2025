@@ -118,6 +118,7 @@ export default function Home() {
         <div className="max-w-sm w-full">
           <div className=" p-6 rounded-lg border border-white/20 text-center">
             <div className="mb-6">
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image className="w-12 h-12 text-white mx-auto mb-4" />
               <h1 className="text-xl font-semibold text-white mb-2">
                 A&A Wedding Photo Share

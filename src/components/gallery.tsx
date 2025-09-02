@@ -1,6 +1,6 @@
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import { useState, useEffect } from "react";
-import { CheckSquare, CircleSlash, Square } from "lucide-react";
+import { CircleSlash, Square } from "lucide-react";
 import { db } from "@/lib/firebase";
 import Image from "next/image";
 import {
@@ -22,7 +22,7 @@ type UploadFile = {
 
 export default function Gallery({
   isSelectionMode,
-  user,
+  //   user,
   setSelectedImages,
   selectedImages,
 }: {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import React from "react";
-import Slider from "react-slick";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 export default function UploadModal({
