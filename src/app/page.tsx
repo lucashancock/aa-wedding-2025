@@ -1,103 +1,144 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth } from "../lib/firebase";
+import { signInAnonymously, updateProfile, User } from "firebase/auth";
+import { ArrowRight, Image, User as UserIcon } from "lucide-react";
+
+const MAGIC_TOKEN = "AAWEDDING2025";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter();
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [user, setUser] = useState<User>();
+  const [isLoading, setIsLoading] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Check for magic token in URL on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (token === MAGIC_TOKEN) {
+      setIsLoading(true);
+      signInAnonymously(auth)
+        .then((cred) => {
+          setUser(cred.user);
+          setShowNamePrompt(true);
+        })
+        .catch((err) => console.error(err))
+        .finally(() => setIsLoading(false));
+    }
+  }, [router]);
+
+  // Handle saving the display name the user enters when prompted after anonymous sign-in
+  const handleSaveName = async () => {
+    if (!user || !displayName.trim()) return;
+
+    setIsLoading(true);
+    try {
+      await updateProfile(user, { displayName: displayName.trim() });
+      router.replace("/gallery");
+    } catch (err) {
+      console.error("Error saving display name:", err);
+    } finally {
+      console.log("Redirecting to gallery...");
+      // setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSaveName();
+    }
+  };
+
+  return (
+    <div className="h-dvh min-w-xs bg-black flex items-center justify-center p-4">
+      {/* Loading state */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="p-6 rounded-lg border border-white/20 bg-black text-center">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-white/60">Loading...</p>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+
+      {/* Display Name Modal */}
+      {showNamePrompt && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="p-6 rounded-lg border border-white/20 bg-black max-w-sm w-full text-center">
+            <div className="mb-6">
+              <UserIcon className="w-8 h-8 text-white/60 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-white mb-2">
+                Welcome!
+              </h2>
+              <p className="text-white/70 text-sm">
+                Please enter your name to continue to the gallery
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Your name"
+                className="w-full px-4 py-3 bg-black border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 transition-colors"
+                autoFocus
+              />
+            </div>
+
+            <button
+              onClick={handleSaveName}
+              disabled={!displayName.trim() || isLoading}
+              className="w-full bg-white text-black font-medium py-3 rounded-lg transition-colors hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2"></div>
+                  Loading...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <p>Continue to Gallery</p>
+                  <ArrowRight className="inline-block w-4 h-4 ml-1" />
+                </div>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Default Card */}
+      {!showNamePrompt && (
+        <div className="max-w-sm w-full">
+          <div className=" p-6 rounded-lg border border-white/20 text-center">
+            <div className="mb-6">
+              <Image className="w-12 h-12 text-white mx-auto mb-4" />
+              <h1 className="text-xl font-semibold text-white mb-2">
+                A&A Wedding Photo Share
+              </h1>
+            </div>
+
+            {/* Card description */}
+            <p className="text-white/70 leading-relaxed mb-6 text-sm">
+              Welcome to our special day! Please scan the QR code or use the
+              provided link to access our wedding photo album.
+            </p>
+
+            {/* Pulsing 3 dots at the bottom of the card */}
+            <div className="flex items-center justify-center space-x-2 text-white/40">
+              <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse delay-150"></div>
+              <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse delay-300"></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
