@@ -1,28 +1,43 @@
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db, storage } from "./firebase";
+import { storage, db } from "@/lib/firebase"; // <- your initialized Firebase
 
-export const handleUpload = async (file: File, userId: string) => {
-  if (!file) throw new Error("No file provided for upload.");
+/**
+ * Uploads an array of files to Firebase Storage
+ * and saves metadata in Firestore.
+ */
+export async function uploadFiles(
+  files: File[],
+  userId: string
+): Promise<void> {
+  if (!files || files.length === 0) return;
 
-  // Create a storage reference
-  const storageRef = ref(
-    storage,
-    `uploads/${userId}/${Date.now()}_${file.name}`
-  );
+  // 1. Map each file to an async upload task
+  const uploadTasks = files.map(async (file) => {
+    const storageRef = ref(
+      storage,
+      `uploads/${userId}/${Date.now()}_${file.name}`
+    );
 
-  // Upload the file to Firebase Storage
-  const snapshot = await uploadBytes(storageRef, file);
-  const downloadURL = await getDownloadURL(snapshot.ref);
+    // Upload file to Firebase Storage
+    await uploadBytes(storageRef, file);
 
-  // Save file metadata to Firestore
-  const fileData = {
-    url: downloadURL,
-    type: file.type,
-    createdAt: serverTimestamp(),
-    uploadedBy: userId,
-  };
-  await addDoc(collection(db, "uploads"), fileData);
+    // Get public download URL
+    const downloadURL = await getDownloadURL(storageRef);
 
-  return downloadURL;
-};
+    // Save metadata to Firestore
+    await addDoc(collection(db, "files"), {
+      userId,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: downloadURL,
+      createdAt: serverTimestamp(),
+    });
+
+    return downloadURL;
+  });
+
+  // 2. Wait for all uploads to finish
+  await Promise.all(uploadTasks);
+}

@@ -1,99 +1,302 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import React from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
-
+import { ArrowLeft, ArrowRight, Upload, X } from "lucide-react";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { storage, db } from "@/lib/firebase"; // your initialized Firebase
+import { User } from "firebase/auth";
 export default function UploadModal({
+  user,
   setShowUploadModal,
   userSelectedFiles,
   setUserSelectedFiles,
 }: {
+  user?: User | undefined;
   setShowUploadModal: (show: boolean) => void;
   userSelectedFiles: File[];
   setUserSelectedFiles: React.Dispatch<React.SetStateAction<File[]>>;
 }) {
   const [previews, setPreviews] = useState<string[]>([]);
   const [idx, setIdx] = useState(0);
+  const [show, setShow] = useState(true);
+  const [visible, setVisible] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  // Carousel gesture state
+  const startX = useRef<number | null>(null);
+  const deltaX = useRef<number>(0);
 
   useEffect(() => {
-    // Generate preview URLs for each file
+    if (show) setVisible(true);
+    else setTimeout(() => setVisible(false), 300);
+  }, [show]);
+
+  useEffect(() => {
     const urls = userSelectedFiles.map((file) => URL.createObjectURL(file));
     setPreviews(urls);
 
-    // Cleanup: revoke object URLs to avoid memory leaks
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
   }, [userSelectedFiles]);
 
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
-      <div className="flex flex-col gap-4 p-4 rounded-lg max-w-sm bg-black/90 w-full h-3/4 text-center border border-white/10">
-        <h2 className="text-xl font-semibold text-white">
-          Upload Photos/Videos
-        </h2>
-        <p className="relative text-md text-white/20 wrap-break-word w-fit">
-          Are you sure you want to upload the following photos?
-        </p>
+  const handleCloseModal = () => {
+    setShow(false);
+    setTimeout(() => setShowUploadModal(false), 300);
+  };
 
-        <div className="relative flex flex-grow border border-white/10 p-5 rounded-lg">
-          <div className="relative w-full h-full">
-            <div className="z-20 absolute top-3 right-2 bg-black px-4 py-1 rounded-xl">
-              {idx + 1} / {previews.length}
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    deltaX.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startX.current !== null) {
+      deltaX.current = e.touches[0].clientX - startX.current;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (deltaX.current > 50 && idx > 0) setIdx(idx - 1);
+    else if (deltaX.current < -50 && idx < previews.length - 1) setIdx(idx + 1);
+    startX.current = null;
+    deltaX.current = 0;
+  };
+
+  // Upload helper
+  const handleFileUpload = async (
+    file: File,
+    onProgress: (percent: number) => void
+  ) => {
+    return new Promise<void>((resolve, reject) => {
+      const storageRef = ref(
+        storage,
+        `gs://aa-wedding-photo-share.firebasestorage.app/uploads/${
+          user?.uid
+        }/${Date.now()}_${file.name}`
+      );
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const percent =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          onProgress(percent);
+        },
+        (error) => reject(error),
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+          await addDoc(collection(db, "uploads"), {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: downloadURL,
+            uploadedBy: user?.displayName,
+            createdAt: serverTimestamp(),
+          });
+
+          resolve();
+        }
+      );
+    });
+  };
+
+  const handleUploadAll = async () => {
+    if (userSelectedFiles.length === 0) return;
+    setUploading(true);
+    setProgress(0);
+
+    try {
+      const totalFiles = userSelectedFiles.length;
+      let completedFiles = 0;
+
+      for (const file of userSelectedFiles) {
+        await handleFileUpload(file, (percent) => {
+          const overallPercent = (completedFiles + percent / 100) / totalFiles;
+          setProgress(Math.floor(overallPercent * 100));
+        });
+        completedFiles++;
+      }
+
+      setUserSelectedFiles([]);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload files. Try again later.");
+    } finally {
+      setUploading(false);
+      setProgress(0);
+      setShow(false);
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* Overlay */}
+      <div
+        className={`absolute inset-0  bg-black/40 transition-all duration-300 ${
+          show ? "backdrop-blur-sm opacity-100" : "backdrop-blur-0 opacity-0"
+        }`}
+        onClick={handleCloseModal}
+      />
+
+      {/* Modal */}
+      <div
+        className={`relative w-full flex h-11/12 flex-col bg-black border-t border-t-white/20 shadow-lg pt-5 px-5 ${
+          show ? "animate-slideUp" : "animate-slideDown"
+        }`}
+      >
+        <div className="flex-col">
+          <div className="flex">
+            <div>
+              <h2 className="flex-grow text-xl font-semibold text-white">
+                Upload Photos/Videos
+              </h2>
+              <p className="relative flex text-md text-white/30 my-2 wrap-break-word w-fit">
+                Are you sure you want to upload the following photos?
+              </p>
             </div>
-            <div
-              className="absolute z-20 top-1/2 left-2 bg-black p-2 rounded-full "
-              onClick={() => {
-                if (idx === 0) return;
-                setIdx(idx - 1);
-              }}
+            <button
+              onClick={handleCloseModal}
+              className="text-white flex h-fit p-2"
+              aria-label="Close"
+              disabled={uploading}
             >
-              <ArrowLeft />
-            </div>
-            <div
-              className="absolute z-20 top-1/2 right-2 bg-black p-2 rounded-full "
-              onClick={() => {
-                if (idx === previews.length - 1) return;
-                setIdx(idx + 1);
-              }}
-            >
-              <ArrowRight />
-            </div>
-            <div className="relative w-full h-full flex items-center justify-center">
-              {previews[idx] && (
-                <Image
-                  src={previews[idx]}
-                  alt="Image preview"
-                  fill
-                  className="object-cover"
-                  key={previews[idx]}
-                  onLoadingComplete={(img) => img.classList.remove("opacity-0")}
-                />
-              )}
-            </div>
+              <X className="w-6 h-6" />
+            </button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            // onClick={handleUpload}
-            // disabled={selectedFiles?.length === 0 || uploading}
-            className="w-full flex-grow text-white font-medium py-3 rounded-lg outline outline-white/10 transition-colors disabled:opacity-50"
-          >
-            {/* {uploading ? "Uploading..." : "Upload"} */}
-            <p>Upload</p>
-          </button>
 
-          <button
-            onClick={() => {
-              setShowUploadModal(false);
-              setUserSelectedFiles([]);
-              //   setPreviewUrl([]);
-            }}
-            className="flex bg-white px-4 text-black font-medium py-3 rounded-lg transition-colors hover:bg-white/90"
-          >
-            Cancel
-          </button>
+        {/* Carousel Preview */}
+        <div className="relative max-w-3xl flex flex-grow flex-col items-center justify-center select-none">
+          <div className="z-20 absolute top-5 right-0 bg-black px-4 py-1 rounded-xl">
+            {idx + 1} / {previews.length}
+          </div>
+          <div className="flex-grow items-center justify-center w-full flex">
+            <button
+              className="flex z-20 p-2 mr-1 rounded-full cursor-pointer"
+              onClick={() => idx > 0 && setIdx(idx - 1)}
+              disabled={idx === 0}
+              aria-label="Previous"
+              style={{ opacity: idx === 0 ? 0.3 : 1 }}
+            >
+              <ArrowLeft />
+            </button>
+            <div
+              className="relative flex-grow flex items-center justify-center h-full overflow-visible"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
+              {previews.map((src, i) => {
+                if (Math.abs(i - idx) > 1) return null;
+                const style: React.CSSProperties = {
+                  position: "absolute",
+                  margin: "auto",
+                  transition:
+                    "transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.1s",
+                  zIndex: i === idx ? 30 : 20 - Math.abs(i - idx),
+                  opacity: i === idx ? 1 : 0.7,
+                  transform:
+                    i === idx
+                      ? "scale(1) translateX(0px)"
+                      : i < idx
+                      ? "scale(0.92) translateX(-60px) rotate(-8deg)"
+                      : "scale(0.92) translateX(60px) rotate(8deg)",
+                  width: "80%",
+                  height: "80%",
+                };
+                return (
+                  <div
+                    key={src}
+                    className="relative outline-5 outline-black"
+                    style={style}
+                  >
+                    <Image
+                      src={src}
+                      alt={`Preview ${i + 1}`}
+                      fill
+                      className="object-cover w-full rounded-xl"
+                      draggable={false}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              className="flex z-20 ml-1 shadow p-2 rounded-full cursor-pointer"
+              onClick={() => idx < previews.length - 1 && setIdx(idx + 1)}
+              disabled={idx === previews.length - 1}
+              aria-label="Next"
+              style={{ opacity: idx === previews.length - 1 ? 0.3 : 1 }}
+            >
+              <ArrowRight />
+            </button>
+          </div>
         </div>
+
+        {/* Upload Button */}
+        <div className="rounded-xl flex justify-center items-center mb-8">
+          <button
+            onClick={handleUploadAll}
+            disabled={userSelectedFiles.length === 0 || uploading}
+            className="relative w-5/6 outline outline-white/10 max-w-2xl overflow-hidden text-white font-medium py-3 rounded-xl transition-colors disabled:opacity-50"
+          >
+            {/* Progress Background */}
+            {uploading && (
+              <span
+                className="absolute top-0 left-0 h-full bg-white/60 z-0 transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            )}
+
+            {/* Button Content */}
+            <span className="relative z-10 flex items-center justify-center">
+              {uploading ? (
+                `Uploading... ${progress}%`
+              ) : (
+                <Upload className="w-5 h-5 mx-auto" />
+              )}
+            </span>
+          </button>
+          {/* Progress Bar
+          {uploading && (
+            <div className="w-5/6 max-w-2xl bg-white/20 h-2 rounded-xl mt-2">
+              <div
+                className="bg-white h-2 rounded-xl transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )} */}
+        </div>
+
+        {/* Animations */}
+        <style jsx>{`
+          .animate-slideUp {
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .animate-slideDown {
+            animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          @keyframes slideUp {
+            from {
+              transform: translateY(100%);
+            }
+            to {
+              transform: translateY(0);
+            }
+          }
+          @keyframes slideDown {
+            from {
+              transform: translateY(0);
+            }
+            to {
+              transform: translateY(100%);
+            }
+          }
+        `}</style>
       </div>
     </div>
   );

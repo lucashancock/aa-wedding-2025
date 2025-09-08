@@ -1,9 +1,9 @@
 TO-DOs:
 
-- Download functionality
-- Upload functionality
-    - Loading bar for upload
 - UX improvements
-- Fix flicker in image preview
-- Support video
+- Remove video support
 - Search/filter functionality
+
+- Smaller title bar to expand screen realestate.
+- Fix bottom bar issue with dvh
+- Bottom bar smaller for more screen realestate?

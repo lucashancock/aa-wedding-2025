@@ -6,8 +6,6 @@ import { auth } from "../lib/firebase";
 import { signInAnonymously, updateProfile, User } from "firebase/auth";
 import { ArrowRight, Image, User as UserIcon } from "lucide-react";
 
-const MAGIC_TOKEN = "AAWEDDING2025";
-
 export default function Home() {
   const router = useRouter();
   const [showNamePrompt, setShowNamePrompt] = useState(false);
@@ -20,7 +18,7 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
 
-    if (token === MAGIC_TOKEN) {
+    if (token === process.env.MAGIC_TOKEN) {
       setIsLoading(true);
       signInAnonymously(auth)
         .then((cred) => {

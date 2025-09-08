@@ -32,12 +32,12 @@ export default function GalleryFooter({
   };
 
   return (
-    <nav className="border-t border-white/10 px-6 py-4">
-      <div className="flex items-center justify-around">
+    <nav className="border-t border-white/10 px-0 py-3">
+      <div className="flex items-center gap-5 px-5 justify-center">
         <button
           onClick={toggleSelectionMode}
-          className={`flex flex-col items-center space-y-1 transition-colors ${
-            isSelectionMode ? "text-white" : "text-white/70 hover:text-white"
+          className={`flex flex-col w-full justify-center items-center space-y-1 transition-colors ${
+            isSelectionMode ? "text-white" : "text-white/70"
           }`}
         >
           <CheckSquare className="w-5 h-5" />
@@ -46,10 +46,12 @@ export default function GalleryFooter({
 
         <label
           htmlFor="file-upload"
-          className="flex flex-col bg-white/90 px-15 py-1 rounded-2xl items-center space-y-1 text-black/70 cursor-pointer"
+          className={`flex flex-col w-full items-center justify-center active:scale-95 transition-transform duration-300 ease-out ${
+            isSelectionMode ? "" : ""
+          } items-center space-y-1 text-white/70`}
         >
           <Upload className="w-5 h-5" />
-          <span className="text-xs">Upload</span>
+          <span className="text-xs">Share</span>
           <input
             id="file-upload"
             type="file"
@@ -68,7 +70,7 @@ export default function GalleryFooter({
 
         <button
           onClick={handleSignOut}
-          className="flex flex-col items-center space-y-1 text-white/70 hover:text-white transition-colors"
+          className="flex flex-col items-center w-full justify-center space-y-1 text-white/70 hover:text-white transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span className="text-xs">Sign Out</span>
