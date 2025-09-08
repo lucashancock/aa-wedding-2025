@@ -14,20 +14,44 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Check for magic token in URL on mount
+  // useEffect(() => {
+  //   const urlParams = new URLSearchParams(window.location.search);
+  //   const token = urlParams.get("token");
+
+  //   if (token === process.env.MAGIC_TOKEN) {
+  //     setIsLoading(true);
+  //     signInAnonymously(auth)
+  //       .then((cred) => {
+  //         setUser(cred.user);
+  //         setShowNamePrompt(true);
+  //       })
+  //       .catch((err) => console.error(err))
+  //       .finally(() => setIsLoading(false));
+  //   }
+  // }, [router]);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
 
-    if (token === process.env.MAGIC_TOKEN) {
-      setIsLoading(true);
-      signInAnonymously(auth)
-        .then((cred) => {
-          setUser(cred.user);
-          setShowNamePrompt(true);
-        })
-        .catch((err) => console.error(err))
-        .finally(() => setIsLoading(false));
-    }
+    if (!token) return;
+
+    setIsLoading(true);
+    fetch(`/api/validate-token?token=${token}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid) {
+          return signInAnonymously(auth);
+        } else {
+          throw new Error("Invalid token");
+        }
+      })
+      .then((cred) => {
+        setUser(cred.user);
+        setShowNamePrompt(true);
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
   }, [router]);
 
   // Handle saving the display name the user enters when prompted after anonymous sign-in
