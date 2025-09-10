@@ -8,7 +8,11 @@ export default function QrCodePage() {
   const [qrCode, setQrCode] = useState<string>("");
 
   useEffect(() => {
-    const url = `"https://${process.env.DOMAIN}/?token=${process.env.MAGIC_TOKEN}`;
+    // TO-DO: find a way to hide these.
+    const domain =
+      "aa-wedding-2025--aa-wedding-photo-share.us-central1.hosted.app";
+    const token = "AAWEDDING2025";
+    const url = `https://${domain}/?token=${token}`;
 
     QRCode.toDataURL(url)
       .then((dataUrl) => {

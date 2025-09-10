@@ -1,7 +1,10 @@
 import { PhotoProvider, PhotoView } from "react-photo-view";
-import { CheckSquare, Square, CircleSlash } from "lucide-react";
+import { CheckSquare, Square, CircleSlash, Download } from "lucide-react";
 import Image from "next/image";
 import { Timestamp } from "firebase/firestore";
+import { getBlob, ref } from "firebase/storage";
+import { storage } from "@/lib/firebase";
+import { DataType } from "react-photo-view/dist/types";
 
 type UploadFile = {
   id: string;
@@ -51,6 +54,75 @@ export default function Gallery({
     return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
   });
 
+  const handleShare = async (index: number) => {
+    const photo = files.at(index);
+    if (!photo) {
+      alert("Photo couldn't be downloaded, try again.");
+      return;
+    }
+    // Helper to get File directly from Firebase Storage
+    const storageUrlToFile = async (
+      url: string,
+      name: string
+    ): Promise<File | null> => {
+      try {
+        // Convert public URL to Storage path
+        // Firebase SDK needs path like 'uploads/...'
+        const pathStart = url.indexOf("/o/") + 3;
+        const pathEnd = url.indexOf("?alt=media");
+        const path = decodeURIComponent(url.substring(pathStart, pathEnd));
+
+        const storageRef = ref(storage, path);
+        const blob = await getBlob(storageRef);
+        return new File([blob], name, { type: blob.type });
+      } catch (err) {
+        console.error("Failed to fetch file from storage", err);
+        return null;
+      }
+    };
+
+    try {
+      // Fetch all selected files as File objects
+      const fileBlob = await storageUrlToFile(
+        photo.url,
+        `wedding-${photo.id}.jpg`
+      );
+      if (!fileBlob) {
+        alert("File couldn't be downloaded, try again.");
+        return;
+      }
+
+      // Mobile share
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [fileBlob] })
+      ) {
+        await navigator.share({
+          files: [fileBlob],
+          title: "Wedding Photos",
+          text: "Here are some wedding photos to save!",
+        });
+      } else {
+        // Desktop fallback: trigger downloads
+        const url = URL.createObjectURL(fileBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileBlob.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("Share was cancelled by the user");
+      } else {
+        console.error("Unknown error sharing: ", err);
+      }
+    }
+  };
+
   return (
     <main className="flex-1 p-4">
       {isLoading ? (
@@ -76,7 +148,19 @@ export default function Gallery({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-[7px]">
-          <PhotoProvider speed={() => 500}>
+          <PhotoProvider
+            toolbarRender={({ index }) => {
+              return (
+                <Download
+                  className="w-5 h-5 mx-4 cursor-pointer"
+                  onClick={() => {
+                    handleShare(index);
+                  }}
+                />
+              );
+            }}
+            speed={() => 500}
+          >
             {filteredFiles.map((file) =>
               file.type.startsWith("image/") ? (
                 <div
