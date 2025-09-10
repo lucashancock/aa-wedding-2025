@@ -54,8 +54,8 @@ export default function Gallery({
     return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
   });
 
-  const handleShare = async (index: number) => {
-    const photo = files.at(index);
+  const handleShare = async (images: any, index: number) => {
+    const photo = images.at(index);
     if (!photo) {
       alert("Photo couldn't be downloaded, try again.");
       return;
@@ -84,8 +84,8 @@ export default function Gallery({
     try {
       // Fetch all selected files as File objects
       const fileBlob = await storageUrlToFile(
-        photo.url,
-        `wedding-${photo.id}.jpg`
+        photo.src,
+        `wedding-${photo.key}.jpg`
       );
       if (!fileBlob) {
         alert("File couldn't be downloaded, try again.");
@@ -149,12 +149,12 @@ export default function Gallery({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-[7px]">
           <PhotoProvider
-            toolbarRender={({ index }) => {
+            toolbarRender={({ images, index }) => {
               return (
                 <Download
                   className="w-5 h-5 mx-4 cursor-pointer"
                   onClick={() => {
-                    handleShare(index);
+                    handleShare(images, index);
                   }}
                 />
               );
