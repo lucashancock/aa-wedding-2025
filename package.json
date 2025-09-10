@@ -10,16 +10,19 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
+    "@plaiceholder/next": "^3.0.0",
     "clsx": "^2.1.1",
     "firebase": "^12.2.1",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
+    "plaiceholder": "^3.0.0",
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-photo-view": "^1.2.7",
     "react-slick": "^0.31.0",
     "react-swipeable": "^7.0.2",
+    "sharp": "^0.34.3",
     "slick-carousel": "^1.8.1"
   },
   "devDependencies": {

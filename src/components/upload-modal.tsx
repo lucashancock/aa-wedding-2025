@@ -5,6 +5,8 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { storage, db } from "@/lib/firebase"; // your initialized Firebase
 import { User } from "firebase/auth";
+import { getPlaiceholder } from "plaiceholder";
+
 export default function UploadModal({
   user,
   setShowUploadModal,
@@ -86,12 +88,22 @@ export default function UploadModal({
         (error) => reject(error),
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          const abuffer = await file.arrayBuffer();
+          // const payload = { abuffer: abuffer }; // your data
+          const res = await fetch("/api/generate-blur", {
+            method: "POST",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: abuffer,
+          });
+          const data = await res.json();
+          const base64 = data.base64;
 
           await addDoc(collection(db, "uploads"), {
             name: file.name,
             type: file.type,
             size: file.size,
             url: downloadURL,
+            blurDataURL: base64, // <-- Next.js Image placeholder
             uploadedBy: user?.displayName,
             createdAt: serverTimestamp(),
           });
@@ -109,24 +121,35 @@ export default function UploadModal({
 
     try {
       const totalFiles = userSelectedFiles.length;
+      const progresses = Array(totalFiles).fill(0);
       let completedFiles = 0;
 
-      for (const file of userSelectedFiles) {
-        await handleFileUpload(file, (percent) => {
-          const overallPercent = (completedFiles + percent / 100) / totalFiles;
-          setProgress(Math.floor(overallPercent * 100));
-        });
-        completedFiles++;
-      }
+      // Map files to upload promises
+      const uploadPromises = userSelectedFiles.map((file, index) =>
+        handleFileUpload(file, (percent) => {
+          progresses[index] = percent;
+          // Compute overall progress = avg of all files
+          const overallPercent =
+            progresses.reduce((a, b) => a + b, 0) / totalFiles;
+          setProgress(Math.floor(overallPercent));
+        })
+      );
 
-      setUserSelectedFiles([]);
+      // Wait for all uploads in parallel
+      await Promise.all(uploadPromises);
+
+      // Done 🎉
+      setProgress(100);
     } catch (err) {
-      console.error(err);
+      console.log(err);
       alert("Failed to upload files. Try again later.");
     } finally {
+      setUserSelectedFiles([]);
       setUploading(false);
-      setProgress(0);
-      setShow(false);
+      setTimeout(() => {
+        setProgress(0);
+        handleCloseModal();
+      }, 250); // slight delay so user sees 100%
     }
   };
 
@@ -149,8 +172,8 @@ export default function UploadModal({
         }`}
       >
         <div className="flex-col">
-          <div className="flex">
-            <div>
+          <div className="flex justify-between">
+            <div className="flex-col ">
               <h2 className="flex-grow text-xl font-semibold text-white">
                 Upload Photos/Videos
               </h2>
@@ -160,7 +183,7 @@ export default function UploadModal({
             </div>
             <button
               onClick={handleCloseModal}
-              className="text-white flex h-fit p-2"
+              className="text-white cursor-pointer flex h-fit p-2"
               aria-label="Close"
               disabled={uploading}
             >
@@ -170,7 +193,7 @@ export default function UploadModal({
         </div>
 
         {/* Carousel Preview */}
-        <div className="relative max-w-3xl flex flex-grow flex-col items-center justify-center select-none">
+        <div className="relative flex flex-grow flex-col items-center justify-center select-none">
           <div className="z-20 absolute top-5 right-0 bg-black px-4 py-1 rounded-xl">
             {idx + 1} / {previews.length}
           </div>
@@ -185,7 +208,7 @@ export default function UploadModal({
               <ArrowLeft />
             </button>
             <div
-              className="relative flex-grow flex items-center justify-center h-full overflow-visible"
+              className="relative flex-grow flex max-w-xl items-center justify-center h-full overflow-visible"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -211,7 +234,7 @@ export default function UploadModal({
                 return (
                   <div
                     key={src}
-                    className="relative outline-5 outline-black"
+                    className="relative rounded-xl outline-6 outline-black"
                     style={style}
                   >
                     <Image

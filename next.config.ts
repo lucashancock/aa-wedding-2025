@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+// @ts-check
+import withPlaiceholder from "@plaiceholder/next";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -11,8 +13,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
   },
 };
 
-export default nextConfig;
+export default withPlaiceholder(nextConfig);

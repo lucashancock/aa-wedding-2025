@@ -21,6 +21,7 @@ import {
 type UploadFile = {
   id: string;
   url: string;
+  blurDataURL: string;
   type: string;
   createdAt: Timestamp;
   uploadedBy: string;

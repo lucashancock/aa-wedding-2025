@@ -4,11 +4,12 @@ import Image from "next/image";
 import { Timestamp } from "firebase/firestore";
 import { getBlob, ref } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { DataType } from "react-photo-view/dist/types";
+import { useState, useEffect } from "react";
 
 type UploadFile = {
   id: string;
   url: string;
+  blurDataURL: string;
   type: string;
   createdAt: Timestamp;
   uploadedBy: string;
@@ -125,7 +126,7 @@ export default function Gallery({
 
   return (
     <main className="flex-1 p-4">
-      {isLoading ? (
+      {files.length === 0 && isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-3"></div>
@@ -167,17 +168,7 @@ export default function Gallery({
                   key={file.id}
                   className="relative aspect-[9/16] overflow-hidden bg-white/5"
                 >
-                  <PhotoView key={file.id} src={file.url}>
-                    <Image
-                      src={file.url}
-                      alt="Uploaded wedding photo"
-                      fill
-                      priority
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                      className="object-cover w-full h-full"
-                    />
-                  </PhotoView>
-
+                  <FadeImage file={file} />
                   {isSelectionMode && (
                     <>
                       <div
@@ -204,18 +195,33 @@ export default function Gallery({
                 <div
                   key={file.id}
                   className="relative aspect-square rounded-lg overflow-hidden bg-white/5"
-                >
-                  <video
-                    src={file.url}
-                    controls
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                ></div>
               )
             )}
           </PhotoProvider>
         </div>
       )}
     </main>
+  );
+}
+
+export function FadeImage({ file }: { file: UploadFile }) {
+  const [load, setLoad] = useState(true);
+  return (
+    <PhotoView key={file.id} src={file.url}>
+      <Image
+        src={file.url}
+        alt="Uploaded wedding photo"
+        fill
+        priority
+        placeholder={file.blurDataURL ? "blur" : undefined}
+        blurDataURL={file.blurDataURL}
+        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+        className={`object-cover w-full h-full transition-all duration-400 ${
+          load ? "blur-xl" : ""
+        }`}
+        onLoad={() => setLoad(false)}
+      />
+    </PhotoView>
   );
 }
